@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080a08">
+<title>AccuRig — Auto Character Rigging</title>
+<link rel="stylesheet" href="css/main.css">
+
+<!-- Three.js r134 via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<!-- GLTFLoader + DRACOLoader + GLTFExporter via unpkg -->
+<script src="https://unpkg.com/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.134.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://unpkg.com/three@0.134.0/examples/js/exporters/GLTFExporter.js"></script>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- COMPASS WIDGET -->
+<div id="compass-widget"></div>
+
+<!-- ==================== SETTINGS OVERLAY ==================== -->
+<div class="settings-overlay" id="settings-overlay" onclick="closeSettingsPanel()"></div>
+
+<!-- ==================== SETTINGS PANEL ==================== -->
+<div class="settings-panel" id="settings-panel">
+  <div class="settings-header">
+    <span class="settings-title">⚙ Pengaturan</span>
+    <button class="btn-icon" onclick="closeSettingsPanel()" style="width:26px;height:26px;font-size:14px;">✕</button>
+  </div>
+
+  <div class="settings-scroll">
+
+    <!-- Device Info -->
+    <div class="device-badge">
+      <span class="db-dot"></span>
+      <span id="device-info-text">Mendeteksi perangkat...</span>
+    </div>
+
+    <!-- Performa -->
+    <div class="settings-group">
+      <div class="settings-group-title">🚀 Performa & Render</div>
+
+      <div class="setting-row">
+        <div>
+          <span class="setting-label">Shadow Maps</span>
+          <span class="setting-desc">Matikan untuk perangkat lambat</span>
+        </div>
+        <input type="checkbox" id="set-shadows" class="styled-checkbox" checked>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <span class="setting-label">Anti-aliasing</span>
+          <span class="setting-desc">Tepi lebih halus (butuh GPU)</span>
+        </div>
+        <input type="checkbox" id="set-antialias" class="styled-checkbox" checked>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <span class="setting-label">Kualitas Proyeksi Joint</span>
+          <span class="setting-desc">FPS update gizmo per frame</span>
+        </div>
+        <select id="set-perf-tier" class="styled-select">
+          <option value="high">Tinggi (60fps)</option>
+          <option value="mid">Sedang (45fps)</option>
+          <option value="low">Rendah (30fps)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- UI -->
+    <div class="settings-group">
+      <div class="settings-group-title">🎨 Tampilan UI</div>
+
+      <div class="setting-row">
+        <div>
+          <span class="setting-label">FPS Counter</span>
+          <span class="setting-desc">Tampilkan FPS di topbar</span>
+        </div>
+        <input type="checkbox" id="set-fps" class="styled-checkbox">
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <span class="setting-label">Panel Kanan</span>
+          <span class="setting-desc">Tampilkan di mobile/tablet</span>
+        </div>
+        <input type="checkbox" id="set-right-panel" class="styled-checkbox">
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <span class="setting-label">Koordinat Joint</span>
+          <span class="setting-desc">Tampilkan X/Y/Z saat pilih joint</span>
+        </div>
+        <input type="checkbox" id="set-coords" class="styled-checkbox" checked>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-label">Lebar Sidebar</span>
+        <input type="range" id="set-sidebar-width" min="120" max="280" value="185" style="flex:1;margin:0 8px">
+        <span style="font-size:10px;color:var(--acc);min-width:30px" id="sidebar-width-preview">185</span>
+      </div>
+    </div>
+
+    <!-- Rig Default -->
+    <div class="settings-group">
+      <div class="settings-group-title">🦴 Default Rig</div>
+
+      <div class="setting-row">
+        <div>
+          <span class="setting-label">Simetri Default</span>
+          <span class="setting-desc">Auto-mirror kiri/kanan saat drag</span>
+        </div>
+        <input type="checkbox" id="set-symmetry" class="styled-checkbox" checked>
+      </div>
+    </div>
+
+    <!-- Shortcut hint -->
+    <div class="settings-group">
+      <div class="settings-group-title">⌨ Keyboard</div>
+      <div style="padding:4px 0">
+        <button class="btn btn-ghost" onclick="closeSettingsPanel();toggleShortcutsHelp();"
+          style="width:100%;justify-content:center;font-size:11px;">
+          Lihat Semua Shortcuts →
+        </button>
+      </div>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="settings-group">
+      <div class="settings-group-title">🗑 Session</div>
+      <div style="padding:4px 0">
+        <button class="btn btn-ghost" onclick="Storage.clearState();toast('Session data dihapus');closeSettingsPanel();"
+          style="width:100%;justify-content:center;font-size:11px;border-color:rgba(255,68,85,0.3);color:var(--red);">
+          Hapus Session Tersimpan
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /settings-scroll -->
+
+  <div class="settings-footer">
+    <button class="btn btn-ghost" onclick="closeSettingsPanel()" style="flex:1;justify-content:center;">Batal</button>
+    <button class="btn btn-primary" onclick="saveSettingsFromPanel()" style="flex:2;justify-content:center;">✓ Simpan</button>
+  </div>
+</div>
+
+<!-- ==================== SHORTCUTS HELP OVERLAY ==================== -->
+<div class="shortcuts-help" id="shortcuts-help" onclick="toggleShortcutsHelp()">
+  <div class="shortcuts-card" onclick="event.stopPropagation()">
+    <div class="shortcuts-card-header">
+      ⌨ Keyboard Shortcuts
+      <button class="btn-icon" onclick="toggleShortcutsHelp()" style="width:24px;height:24px;font-size:12px;">✕</button>
+    </div>
+
+    <div class="shortcut-section">
+      <div class="shortcut-section-title">Navigasi Kamera</div>
+      <div class="shortcut-row">
+        <span>View Front</span>
+        <span class="shortcut-key"><span class="kbd">F</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>View Back</span>
+        <span class="shortcut-key"><span class="kbd">B</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>View Top</span>
+        <span class="shortcut-key"><span class="kbd">T</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Reset View</span>
+        <span class="shortcut-key"><span class="kbd">R</span></span>
+      </div>
+    </div>
+
+    <div class="shortcut-section">
+      <div class="shortcut-section-title">Edit</div>
+      <div class="shortcut-row">
+        <span>Undo</span>
+        <span class="shortcut-key"><span class="kbd">Ctrl</span> + <span class="kbd">Z</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Redo</span>
+        <span class="shortcut-key"><span class="kbd">Ctrl</span> + <span class="kbd">Y</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Save State</span>
+        <span class="shortcut-key"><span class="kbd">Ctrl</span> + <span class="kbd">S</span></span>
+      </div>
+    </div>
+
+    <div class="shortcut-section">
+      <div class="shortcut-section-title">Viewport (Check Model)</div>
+      <div class="shortcut-row">
+        <span>Toggle Wireframe</span>
+        <span class="shortcut-key"><span class="kbd">W</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Toggle Bones</span>
+        <span class="shortcut-key"><span class="kbd">X</span></span>
+      </div>
+    </div>
+
+    <div class="shortcut-section">
+      <div class="shortcut-section-title">Playback</div>
+      <div class="shortcut-row">
+        <span>Play / Pause</span>
+        <span class="shortcut-key"><span class="kbd">Space</span></span>
+      </div>
+    </div>
+
+    <div class="shortcut-section">
+      <div class="shortcut-section-title">UI</div>
+      <div class="shortcut-row">
+        <span>Shortcuts Help</span>
+        <span class="shortcut-key"><span class="kbd">?</span></span>
+      </div>
+      <div class="shortcut-row">
+        <span>Tutup Panel</span>
+        <span class="shortcut-key"><span class="kbd">Esc</span></span>
+      </div>
+    </div>
+
+    <div style="padding:10px 16px;text-align:center">
+      <span style="font-size:10px;color:var(--text3)">Tap di luar untuk menutup</span>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app">
+
+  <!-- ==================== TOPBAR ==================== -->
+  <div id="topbar">
+    <div class="logo">
+      <div class="logo-badge">AR</div>
+      <div class="logo-text">actor<span>core</span> AccuRig</div>
+    </div>
+    <div class="topbar-divider"></div>
+    <div class="step-tabs">
+      <div class="step-tab active" onclick="navigateTo('load')">
+        <div class="step-num">1</div>Load
+      </div>
+      <div class="step-tab locked" onclick="navigateTo('check')">
+        <div class="step-num">2</div>Check
+      </div>
+      <div class="step-tab locked" onclick="navigateTo('bodyrig')">
+        <div class="step-num">3</div>Body Rig
+      </div>
+      <div class="step-tab locked" onclick="navigateTo('handrig')">
+        <div class="step-num">4</div>Hand Rig
+      </div>
+      <div class="step-tab locked" onclick="navigateTo('checkactor')">
+        <div class="step-num">5</div>Actor
+      </div>
+      <div class="step-tab locked" onclick="navigateTo('motions')">
+        <div class="step-num">6</div>Export
+      </div>
+    </div>
+
+    <!-- Topbar right: FPS + Settings -->
+    <div class="topbar-right">
+      <div id="fps-display">-- fps</div>
+      <button class="btn-icon" onclick="openSettingsPanel()" title="Pengaturan">⚙</button>
+      <button class="btn-icon" onclick="toggleShortcutsHelp()" title="Shortcuts [?]">⌨</button>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 1: LOAD ==================== -->
+  <div id="page-load" class="page active">
+    <div class="load-page">
+      <div class="load-card">
+        <div class="load-logo-big">
+          <div class="load-icon-wrap">🧍</div>
+          <div class="load-title">LOAD CHARACTER</div>
+          <div class="load-sub">Import model karakter 3D untuk memulai proses auto-rigging. Mendukung format GLB &amp; GLTF untuk tampilan 3D nyata.</div>
+        </div>
+
+        <!-- Session Restore Banner -->
+        <div class="session-restore-banner" id="session-restore-banner">
+          <div class="srb-icon">💾</div>
+          <div class="srb-info">
+            <div class="srb-title">Sesi Tersimpan Ditemukan</div>
+            <div class="srb-sub">File: <span class="session-filename">—</span></div>
+          </div>
+          <div class="srb-actions">
+            <button class="srb-btn primary" onclick="restoreSession()">Pulihkan</button>
+            <button class="srb-btn" onclick="dismissSession()">✕</button>
+          </div>
+        </div>
+
+        <div class="dropzone" id="dz">
+          <input type="file" accept=".glb,.gltf,.fbx,.obj" onchange="onFileInput(this)">
+          <div class="dz-icon">📂</div>
+          <div class="dz-text">Ketuk untuk pilih file atau seret ke sini</div>
+          <div class="dz-hint">Dari penyimpanan perangkat Android kamu</div>
+          <div class="dz-formats">
+            <span class="dz-format-tag highlight">GLB</span>
+            <span class="dz-format-tag highlight">GLTF</span>
+            <span class="dz-format-tag">FBX</span>
+            <span class="dz-format-tag">OBJ</span>
+          </div>
+        </div>
+
+        <div class="file-loaded" id="file-loaded">
+          <div class="fl-icon">📦</div>
+          <div class="fl-info">
+            <div class="fl-name" id="fl-name">—</div>
+            <div class="fl-meta" id="fl-meta">—</div>
+          </div>
+          <div class="fl-check">✓</div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-load-next" disabled
+          onclick="proceedFromLoad()"
+          style="width:100%;padding:13px;font-size:14px;justify-content:center;">
+          ▶&ensp;Load &amp; Analisis Model
+        </button>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="sb-dot"></div>
+      <div class="sb-msg">Pilih file karakter untuk memulai</div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 2: CHECK MODEL ==================== -->
+  <div id="page-check" class="page">
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="tb-group">
+        <span class="tb-label">Wire</span>
+        <button class="tb-btn" id="tb-wire" onclick="tbWireframe()">OFF</button>
+      </div>
+      <div class="tb-group">
+        <span class="tb-label">Side</span>
+        <button class="tb-btn side-btn active" onclick="tbSide(true,this)">Single</button>
+        <button class="tb-btn side-btn" onclick="tbSide(false,this)">Double</button>
+      </div>
+      <div class="tb-group">
+        <span class="tb-label">Render</span>
+        <button class="tb-btn render-btn active" data-mode="final"  onclick="tbRender('final')">Final</button>
+        <button class="tb-btn render-btn" data-mode="albedo"  onclick="tbRender('albedo')">Albedo</button>
+        <button class="tb-btn render-btn" data-mode="normals" onclick="tbRender('normals')">Normals</button>
+      </div>
+      <div class="tb-group">
+        <span class="tb-label">Geo</span>
+        <button class="tb-btn geo-btn" data-mode="matcap"     onclick="tbGeo('matcap')">Matcap</button>
+        <button class="tb-btn geo-btn" data-mode="wireframe"  onclick="tbGeo('wireframe')">Wire</button>
+        <button class="tb-btn geo-btn" data-mode="uvchecked"  onclick="tbGeo('uvchecked')">UV</button>
+      </div>
+      <div class="tb-group">
+        <button class="tb-btn" id="tb-bones" onclick="tbBones()">🦴 Bones</button>
+      </div>
+    </div>
+
+    <div class="layout-3col">
+
+      <!-- LEFT: Inspector -->
+      <div class="panel-left">
+        <div class="panel-hdr">
+          Inspector
+          <span id="bones-info-badge"></span>
+        </div>
+        <div class="panel-scroll">
+
+          <div class="sec">
+            <div class="sec-hdr open" id="sec-info-hdr" onclick="toggleSection('sec-info')">
+              <span>📄 File Info</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body open" id="sec-info-body">
+              <div class="list-item" style="flex-direction:column;align-items:flex-start;gap:2px;pointer-events:none">
+                <span style="font-size:9px;color:var(--text3)">Filename</span>
+                <span id="stat-filename" style="font-size:10px;color:var(--acc);word-break:break-all">—</span>
+              </div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Size</span><span id="stat-filesize" class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Vertices</span><span id="stat-verts"    class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Triangles</span><span id="stat-tris"   class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Polygons</span><span id="stat-polys"   class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Meshes</span><span id="stat-meshes"    class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Materials</span><span id="stat-mats"   class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Textures</span><span id="stat-textures" class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Bones</span><span id="stat-bones"      class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Animations</span><span id="stat-anims" class="li-badge badge-info">—</span></div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-hdr open" id="sec-val-hdr" onclick="toggleSection('sec-val')">
+              <span>✅ Validasi</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body open" id="sec-val-body">
+              <div class="list-item" style="pointer-events:none"><span class="li-label">T-Pose</span><span id="val-tpose"    class="li-badge">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Manifold</span><span id="val-manifold" class="li-badge">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">UV Mapping</span><span id="val-uv"    class="li-badge">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Normals</span><span id="val-normals"  class="li-badge">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Scale</span><span id="val-scale"      class="li-badge">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Orientation</span><span id="val-orient" class="li-badge">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEWPORT -->
+      <div class="viewport-container" id="check-viewport-wrap">
+        <!-- Loading overlay -->
+        <div class="overlay-full" id="load-overlay">
+          <div class="spinner"></div>
+          <div class="overlay-title">MEMUAT MODEL</div>
+          <div class="overlay-sub" id="load-overlay-step">Membaca file...</div>
+          <div class="progress-wrap">
+            <div class="progress-track">
+              <div class="progress-fill" id="load-progress-fill" style="width:0%"></div>
+            </div>
+            <div class="progress-pct" id="load-progress-pct">0%</div>
+          </div>
+        </div>
+
+        <div class="vp-overlay">
+          <div class="vp-mode-badge" id="check-mode-badge">3D VIEW</div>
+          <div class="vp-controls" style="top:8px;right:8px">
+            <button class="btn-icon" onclick="vpZoomIn()">＋</button>
+            <button class="btn-icon" onclick="vpZoomOut()">－</button>
+            <button class="btn-icon" onclick="vpReset()">⟳</button>
+            <button class="btn-icon" onclick="vpSetView('front')">F</button>
+            <button class="btn-icon" onclick="vpSetView('back')">B</button>
+            <button class="btn-icon" onclick="vpSetView('top')">T</button>
+          </div>
+          <div class="vp-info-bl">1 jari: Rotasi &nbsp;|&nbsp; 2 jari: Zoom &nbsp;|&nbsp; 2 jari geser: Pan</div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Channels -->
+      <div class="panel-right">
+        <div class="panel-hdr">
+          Channels
+          <span id="mat-channel-count" style="font-size:9px;font-family:var(--font-body);color:var(--text2)">—</span>
+        </div>
+        <div class="panel-scroll">
+          <div class="sec">
+            <div class="sec-hdr open" id="sec-mat-hdr" onclick="toggleSection('sec-mat')">
+              <span>🎨 Material</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body open" id="sec-mat-body">
+              <div id="channel-list">
+                <div class="list-item active" onclick="setChannel('base_color', this)">
+                  <span class="li-icon">🟫</span><span class="li-label">Base Color</span><span class="li-badge badge-ok">ON</span>
+                </div>
+                <div class="list-item" onclick="setChannel('metalness', this)">
+                  <span class="li-icon">🔩</span><span class="li-label">Metalness</span><span class="li-badge badge-warn">0.1</span>
+                </div>
+                <div class="list-item" onclick="setChannel('roughness', this)">
+                  <span class="li-icon">〰️</span><span class="li-label">Roughness</span><span class="li-badge badge-ok">0.7</span>
+                </div>
+                <div class="list-item" onclick="setChannel('normal', this)">
+                  <span class="li-icon">🗺️</span><span class="li-label">Normal Map</span><span class="li-badge badge-ok">ON</span>
+                </div>
+                <div class="list-item" onclick="setChannel('opacity', this)">
+                  <span class="li-icon">🔲</span><span class="li-label">Opacity</span><span class="li-badge badge-warn">—</span>
+                </div>
+                <div class="list-item" onclick="setChannel('emission', this)">
+                  <span class="li-icon">💡</span><span class="li-label">Emission</span><span class="li-badge badge-warn">—</span>
+                </div>
+                <div class="list-item" onclick="setChannel('specular', this)">
+                  <span class="li-icon">✨</span><span class="li-label">Specular F0</span><span class="li-badge badge-warn">0.04</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-hdr" id="sec-geo-hdr" onclick="toggleSection('sec-geo')">
+              <span>📐 Geometry</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body" id="sec-geo-body">
+              <div id="geo-list">
+                <div class="list-item" onclick="setGeoMode('matcap', this)"><span class="li-icon">🔵</span><span class="li-label">Matcap</span></div>
+                <div class="list-item" onclick="setGeoMode('matcap+', this)"><span class="li-icon">🔷</span><span class="li-label">Matcap + Surface</span></div>
+                <div class="list-item" onclick="setGeoMode('wireframe', this)"><span class="li-icon">🔗</span><span class="li-label">Wireframe</span></div>
+                <div class="list-item" onclick="setGeoMode('vnormals', this)"><span class="li-icon">↗️</span><span class="li-label">Vertex Normals</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-hdr" id="sec-uv-hdr" onclick="toggleSection('sec-uv')">
+              <span>🗂️ UV</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body" id="sec-uv-body">
+              <div id="uv-list">
+                <div class="list-item" onclick="setUVMode('checker', this)"><span class="li-icon">♟️</span><span class="li-label">UV Checker</span></div>
+                <div class="list-item" onclick="setUVMode('stretch', this)"><span class="li-icon">🌡️</span><span class="li-label">UV Stretch</span></div>
+                <div class="list-item" onclick="setUVMode('seams', this)"><span class="li-icon">✂️</span><span class="li-label">UV Seams</span></div>
+                <div class="list-item" onclick="setUVMode('density', this)"><span class="li-icon">📊</span><span class="li-label">Texel Density</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-ghost" onclick="navigateTo('load')">← Kembali</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="btn-check-next" disabled onclick="proceedToBodyRig()">
+        ✓ Lanjut ke Body Rig →
+      </button>
+    </div>
+    <div class="statusbar">
+      <div class="sb-dot"></div>
+      <div class="sb-msg">Tinjau model — verifikasi geometri, material dan UV</div>
+      <div class="sb-right" id="sb-right-val">—</div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 3: BODY RIG ==================== -->
+  <div id="page-bodyrig" class="page">
+    <div class="layout-3col">
+
+      <!-- LEFT: Joint List -->
+      <div class="panel-left">
+        <div class="panel-hdr">
+          Joints
+          <button class="panel-hdr-btn" onclick="resetBodyJoints()" title="Reset semua joint">↺</button>
+        </div>
+        <div class="panel-scroll">
+          <div class="info-card" style="font-size:10px">
+            Seret titik untuk mengatur joint. Simetri otomatis kiri/kanan.
+          </div>
+          <div id="body-joint-list"></div>
+        </div>
+      </div>
+
+      <!-- VIEWPORT: body rig -->
+      <div class="viewport-container" id="rig-viewport">
+        <!-- Gizmo layer -->
+        <div class="gizmo-layer" id="body-gizmo-layer"></div>
+
+        <!-- Analysis overlay -->
+        <div class="overlay-full" id="rig-analyze-overlay">
+          <div class="spinner"></div>
+          <div class="overlay-title">MENGANALISIS TUBUH</div>
+          <div class="overlay-sub" id="rig-analyze-step">Mendeteksi landmark tubuh...</div>
+          <div class="progress-wrap">
+            <div class="progress-track">
+              <div class="progress-fill" id="rig-progress-fill" style="width:0%"></div>
+            </div>
+            <div class="progress-pct" id="rig-progress-pct">0%</div>
+          </div>
+        </div>
+
+        <div class="vp-overlay" style="pointer-events:none">
+          <div class="vp-mode-badge">BODY RIG</div>
+          <div class="vp-info-bl" id="bodyrig-status">Analisis sedang berjalan...</div>
+        </div>
+
+        <div class="vp-controls">
+          <button class="btn-icon active" id="sym-btn" title="Simetri ON/OFF" onclick="toggleBodySymmetry(document.getElementById('sym-toggle'))">⇆</button>
+          <button class="btn-icon" onclick="vpZoomIn()">＋</button>
+          <button class="btn-icon" onclick="vpZoomOut()">－</button>
+          <button class="btn-icon" onclick="vpReset()">⟳</button>
+          <button class="btn-icon" onclick="vpSetView('front')">F</button>
+          <button class="btn-icon" onclick="vpSetView('right')">R</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Joint Settings -->
+      <div class="panel-right">
+        <div class="panel-hdr">Joint Info</div>
+        <div class="panel-scroll">
+
+          <div style="padding:10px 12px">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:5px">SELECTED JOINT</div>
+            <div id="sel-joint-name" style="background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:6px 10px;font-size:11px;color:var(--acc);font-weight:500">Belum dipilih</div>
+          </div>
+
+          <div class="form-row">
+            <span class="form-label">Simetri</span>
+            <div style="flex:1"></div>
+            <div class="toggle on" id="sym-toggle" onclick="toggleBodySymmetry(this)"></div>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Midpoint</span>
+            <div style="flex:1"></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+
+          <div class="form-row">
+            <span class="form-label">Joint Size</span>
+            <input type="range" min="10" max="100" value="50" oninput="updateJointSize(this)">
+            <span class="form-val" id="joint-size-val">50</span>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Opacity</span>
+            <input type="range" min="10" max="100" value="80" oninput="updateJointOpacity(this)">
+            <span class="form-val" id="joint-opacity-val">80</span>
+          </div>
+
+          <div class="sec">
+            <div class="sec-hdr open" id="sec-coords-hdr" onclick="toggleSection('sec-coords')">
+              <span>📍 Koordinat</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body open" id="sec-coords-body">
+              <div class="list-item" style="pointer-events:none"><span class="li-label">X</span><span id="joint-x" class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Y</span><span id="joint-y" class="li-badge badge-info">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Z</span><span id="joint-z" class="li-badge badge-info">—</span></div>
+            </div>
+          </div>
+
+          <div class="info-card" style="margin-top:8px">
+            <strong>Legend</strong>
+            <span style="color:var(--yellow)">●</span> Primary &nbsp;
+            <span style="color:var(--cyan)">●</span> Secondary &nbsp;
+            <span style="color:var(--acc)">●</span> Spine
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-ghost" onclick="navigateTo('check')">← Kembali</button>
+      <!-- Undo/Redo buttons -->
+      <div class="undo-redo-group">
+        <button class="btn-icon" id="btn-undo" onclick="performUndo()" title="Undo (Ctrl+Z)" disabled>↩</button>
+        <button class="btn-icon" id="btn-redo" onclick="performRedo()" title="Redo (Ctrl+Y)" disabled>↪</button>
+      </div>
+      <button class="btn btn-secondary" onclick="resetBodyJoints()">↺ Reset</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="btn-bodyrig-next" disabled onclick="proceedToHandRig()">
+        ✓ Body Rig Selesai → Hand Rig
+      </button>
+    </div>
+    <div class="statusbar">
+      <div class="sb-dot"></div>
+      <div class="sb-msg" id="bodyrig-status-bar">Sesuaikan posisi joint — seret untuk memindahkan</div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 4: HAND RIG ==================== -->
+  <div id="page-handrig" class="page">
+    <div class="layout-3col">
+
+      <!-- LEFT: Hand Joint List -->
+      <div class="panel-left">
+        <div class="panel-hdr">Hand Joints</div>
+        <div class="panel-scroll">
+          <div style="padding:8px 10px;display:flex;gap:5px">
+            <button class="btn btn-secondary hand-switch-btn active" data-hand="left"  onclick="switchHand('left')"  style="flex:1;font-size:11px">← Kiri</button>
+            <button class="btn btn-ghost   hand-switch-btn"          data-hand="right" onclick="switchHand('right')" style="flex:1;font-size:11px">Kanan →</button>
+          </div>
+          <div style="padding:3px 12px 7px;font-size:10px;color:var(--acc);font-weight:500" id="active-hand-label">Left Hand</div>
+          <div id="hand-joint-list"></div>
+        </div>
+      </div>
+
+      <!-- VIEWPORT: Hand -->
+      <div class="viewport-container" id="hand-viewport">
+        <div class="gizmo-layer" id="hand-gizmo-layer"></div>
+
+        <!-- Analysis overlay -->
+        <div class="overlay-full" id="hand-analyze-overlay">
+          <div class="spinner"></div>
+          <div class="overlay-title">MENDETEKSI JARI</div>
+          <div class="overlay-sub" id="hand-analyze-step">Menganalisis topologi jari...</div>
+          <div class="progress-wrap">
+            <div class="progress-track">
+              <div class="progress-fill" id="hand-progress-fill" style="width:0%"></div>
+            </div>
+            <div class="progress-pct" id="hand-progress-pct">0%</div>
+          </div>
+        </div>
+
+        <div class="vp-overlay" style="pointer-events:none">
+          <div class="vp-mode-badge">HAND RIG</div>
+          <div class="vp-info-bl">Seret joint untuk menyesuaikan posisi jari</div>
+        </div>
+
+        <div class="vp-controls">
+          <button class="btn-icon" onclick="vpZoomIn()">＋</button>
+          <button class="btn-icon" onclick="vpZoomOut()">－</button>
+          <button class="btn-icon" onclick="vpReset()">⟳</button>
+          <button class="btn-icon" onclick="vpSetView('right')">R</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Hand Settings -->
+      <div class="panel-right">
+        <div class="panel-hdr">Pengaturan Tangan</div>
+        <div class="panel-scroll">
+          <div style="padding:10px 12px">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:5px">JOINT DIPILIH</div>
+            <div id="sel-hand-joint-name" style="background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:6px 10px;font-size:10px;color:var(--acc)">Belum dipilih</div>
+          </div>
+
+          <div class="form-row">
+            <span class="form-label">Auto Detect</span>
+            <div style="flex:1"></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="form-row">
+            <span class="form-label">Mirror Hand</span>
+            <div style="flex:1"></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-hdr open" id="sec-fingers-hdr" onclick="toggleSection('sec-fingers')">
+              <span>🖐 Finger Summary</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body open" id="sec-fingers-body">
+              <div class="list-item" style="pointer-events:none"><span class="li-icon">👍</span><span class="li-label">Thumb</span><span class="li-badge badge-ok">3 joints</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-icon">☝️</span><span class="li-label">Index</span><span class="li-badge badge-ok">3 joints</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-icon">🖕</span><span class="li-label">Middle</span><span class="li-badge badge-ok">3 joints</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-icon">💍</span><span class="li-label">Ring</span><span class="li-badge badge-ok">3 joints</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-icon">🤙</span><span class="li-label">Pinky</span><span class="li-badge badge-ok">3 joints</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label" style="color:var(--acc)">Total (per hand)</span><span class="li-badge badge-ok">16 joints</span></div>
+            </div>
+          </div>
+
+          <div class="info-card ok" style="margin-top:6px">
+            <strong>32 finger joints total</strong>
+            16 per tangan ditempatkan otomatis oleh analisis AI.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-ghost" onclick="navigateTo('bodyrig')">← Kembali</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="btn-handrig-next" disabled onclick="proceedToCheckActor()">
+        ✓ Hand Rig Selesai → Check Actor
+      </button>
+    </div>
+    <div class="statusbar">
+      <div class="sb-dot"></div>
+      <div class="sb-msg">Sesuaikan joint jari — seret untuk reposisi</div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 5: CHECK ACTOR ==================== -->
+  <div id="page-checkactor" class="page">
+    <div class="layout-3col">
+
+      <!-- LEFT: Summary -->
+      <div class="panel-left">
+        <div class="panel-hdr">Rig Summary</div>
+        <div class="panel-scroll">
+          <div class="list-item" style="pointer-events:none"><span class="li-icon">✅</span><span class="li-label">Body Skeleton</span><span class="li-badge badge-ok">OK</span></div>
+          <div class="list-item" style="pointer-events:none"><span class="li-icon">✅</span><span class="li-label">Left Hand</span><span class="li-badge badge-ok">16</span></div>
+          <div class="list-item" style="pointer-events:none"><span class="li-icon">✅</span><span class="li-label">Right Hand</span><span class="li-badge badge-ok">16</span></div>
+          <div class="list-item" style="pointer-events:none"><span class="li-icon">⚠️</span><span class="li-label">Face Bones</span><span class="li-badge badge-warn">Optional</span></div>
+          <div class="list-item" style="pointer-events:none"><span class="li-icon">✅</span><span class="li-label">Skin Weights</span><span class="li-badge badge-ok">Good</span></div>
+          <div class="list-item" style="pointer-events:none"><span class="li-label">Total Bones</span><span id="actor-bone-count" class="li-badge badge-ok">—</span></div>
+
+          <div class="info-card ok" style="margin-top:8px">
+            <strong>Rig Berhasil!</strong>
+            Karakter siap untuk animasi motion capture.
+          </div>
+
+          <div class="sec" style="margin-top:4px">
+            <div class="sec-hdr open" id="sec-pose-hdr" onclick="toggleSection('sec-pose')">
+              <span>🎭 Test Pose</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body open" id="sec-pose-body">
+              <div style="padding:6px 10px;display:flex;flex-direction:column;gap:5px">
+                <button class="btn btn-ghost" onclick="testPose('tpose')" style="justify-content:flex-start;font-size:11px">🧍 T-Pose</button>
+                <button class="btn btn-ghost" onclick="testPose('apose')" style="justify-content:flex-start;font-size:11px">🙆 A-Pose</button>
+                <button class="btn btn-ghost" onclick="testPose('wave')"  style="justify-content:flex-start;font-size:11px">👋 Wave</button>
+                <button class="btn btn-ghost" onclick="testPose('walk')"  style="justify-content:flex-start;font-size:11px">🚶 Walk Cycle</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEWPORT -->
+      <div class="viewport-container" id="actor-viewport">
+        <div class="vp-overlay" style="pointer-events:none">
+          <div class="vp-mode-badge">CHECK ACTOR</div>
+          <div class="vp-info-bl">Model dengan rig lengkap — test animasi tersedia</div>
+        </div>
+        <div class="vp-controls">
+          <button class="btn-icon" onclick="vpZoomIn()">＋</button>
+          <button class="btn-icon" onclick="vpZoomOut()">－</button>
+          <button class="btn-icon" onclick="vpReset()">⟳</button>
+          <button class="btn-icon" id="actor-play-btn" onclick="toggleActorPreview(this)">▶</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: Quality — NYATA dari QualityCalculator -->
+      <div class="panel-right">
+        <div class="panel-hdr">Kualitas Rig</div>
+        <div class="panel-scroll">
+          <div class="info-card ok">
+            <strong>Skin Weight Quality</strong>
+            Karakter siap menerima data motion capture.
+          </div>
+
+          <div class="sec">
+            <div class="sec-hdr open" id="sec-quality-hdr" onclick="toggleSection('sec-quality')">
+              <span>📊 Skin Weight</span><span class="chevron">▾</span>
+            </div>
+            <div class="sec-body open" id="sec-quality-body">
+              <div style="padding:8px 12px">
+                <div style="font-size:10px;color:var(--text2);margin-bottom:5px">Overall Quality</div>
+                <div style="height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:4px">
+                  <div class="progress-fill-quality" id="quality-bar-overall" style="width:0%"></div>
+                </div>
+                <div class="quality-pct" id="quality-pct-overall">—</div>
+                <div id="quality-note" style="font-size:9px;color:var(--text3);margin-top:4px;font-style:italic">Menghitung...</div>
+              </div>
+              <!-- Per-group dengan ID yang terhubung ke QualityCalculator -->
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Shoulders</span><span class="li-badge badge-ok" id="q-shoulders">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Elbows</span><span class="li-badge badge-ok" id="q-elbows">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Knees</span><span class="li-badge badge-ok" id="q-knees">—</span></div>
+              <div class="list-item" style="pointer-events:none"><span class="li-label">Fingers</span><span class="li-badge badge-warn" id="q-fingers">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-ghost" onclick="navigateTo('handrig')">← Kembali</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="proceedToMotions()">
+        ✓ Finalisasi → Add Motions
+      </button>
+    </div>
+    <div class="statusbar">
+      <div class="sb-dot"></div>
+      <div class="sb-msg">Rig tervalidasi — karakter siap untuk animasi</div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 6: MOTIONS & EXPORT ==================== -->
+  <div id="page-motions" class="page">
+    <div class="layout-3col">
+
+      <!-- LEFT: Motions Library -->
+      <div class="panel-left">
+        <div class="panel-hdr">Motions Library</div>
+        <div class="panel-scroll">
+          <div id="motions-list"></div>
+        </div>
+      </div>
+
+      <!-- VIEWPORT + Timeline -->
+      <div class="viewport-container" id="motions-viewport">
+        <div class="vp-overlay" style="pointer-events:none">
+          <div class="vp-mode-badge">MOTIONS</div>
+        </div>
+        <div class="vp-controls">
+          <button class="btn-icon" onclick="vpZoomIn()">＋</button>
+          <button class="btn-icon" onclick="vpZoomOut()">－</button>
+          <button class="btn-icon" onclick="vpReset()">⟳</button>
+          <button class="btn-icon" id="play-btn" onclick="togglePlay(this)">▶</button>
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-wrap">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            <span id="tl-current" style="font-size:10px;color:var(--text3);min-width:28px">0:00</span>
+            <div id="tl-track" class="tl-track" style="flex:1" onclick="seekTimeline(event)">
+              <div class="tl-fill" id="tl-fill" style="width:0%"></div>
+              <div class="tl-head" id="tl-head" style="left:0%"></div>
+            </div>
+            <span id="tl-total" style="font-size:10px;color:var(--text3);min-width:28px">0:00</span>
+          </div>
+          <div class="tl-meta">
+            <span>AccuRig Player</span>
+            <span id="tl-name" class="tl-name">—</span>
+            <span id="tl-format"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Export -->
+      <div class="panel-right">
+        <div class="panel-hdr">Export</div>
+        <div class="panel-scroll">
+
+          <div class="export-grid">
+            <div class="export-card selected" id="ec-glb" onclick="selectExportFormat('glb', this)">
+              <div class="ec-icon">🧊</div>
+              <div class="ec-name">GLB</div>
+              <div class="ec-sub">Web / iClone</div>
+            </div>
+            <div class="export-card" id="ec-fbx" onclick="selectExportFormat('fbx', this)">
+              <div class="ec-icon">📦</div>
+              <div class="ec-name">FBX</div>
+              <div class="ec-sub">Maya / Unreal</div>
+            </div>
+            <div class="export-card" id="ec-usd" onclick="selectExportFormat('usd', this)">
+              <div class="ec-icon">🌐</div>
+              <div class="ec-name">USD</div>
+              <div class="ec-sub">Pixar / Blender</div>
+            </div>
+            <div class="export-card" id="ec-bvh" onclick="selectExportFormat('bvh', this)">
+              <div class="ec-icon">🦿</div>
+              <div class="ec-name">BVH</div>
+              <div class="ec-sub">Motion Capture</div>
+            </div>
+          </div>
+
+          <div style="padding:4px 12px">
+            <div class="form-row" style="padding:5px 0">
+              <span class="form-label">Animasi</span>
+              <div style="flex:1"></div>
+              <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+            </div>
+            <div class="form-row" style="padding:5px 0">
+              <span class="form-label">Material</span>
+              <div style="flex:1"></div>
+              <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+            </div>
+            <div class="form-row" style="padding:5px 0">
+              <span class="form-label">Embed Tex</span>
+              <div style="flex:1"></div>
+              <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+            </div>
+          </div>
+
+          <div style="padding:0 10px 10px">
+            <button class="btn btn-primary" onclick="exportCharacter()"
+              style="width:100%;padding:12px;font-size:13px;justify-content:center;">
+              ⬇&ensp;Export Karakter
+            </button>
+          </div>
+
+          <div class="info-card ok">
+            <strong>Output File</strong>
+            <span id="export-filename">—</span>
+            <span style="font-size:9px;color:var(--text3);display:block;margin-top:2px" id="export-est-size">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <div class="sb-dot"></div>
+      <div class="sb-msg">Rig selesai — pilih motion dan export karakter</div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- JS: State must load first -->
+<script src="js/state.js"></script>
+<script src="js/joints.js"></script>
+<script src="js/viewer.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+/**
+ * Canvas setup: dibuat programatik, dipindahkan ke viewport aktif oleh app.js
+ */
+(function() {
+  const canvas = document.createElement('canvas');
+  canvas.id = 'main-canvas';
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:block;outline:none;touch-action:none;z-index:1;';
+  const startVP = document.getElementById('check-viewport-wrap');
+  if (startVP) startVP.insertBefore(canvas, startVP.firstChild);
+})();
+
+/**
+ * Init settings panel: update device info + live sidebar preview
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  // Device info display
+  const di = window.DeviceInfo;
+  const infoEl = document.getElementById('device-info-text');
+  if (infoEl && di) {
+    const type = di.isDesktop ? 'Desktop' : di.isTablet ? 'Tablet' : 'Mobile';
+    const tier = di.tier.charAt(0).toUpperCase() + di.tier.slice(1);
+    infoEl.textContent = `${type} · GPU ${tier} · Pixel Ratio ${di.pixelRatio.toFixed(1)}x`;
+  }
+
+  // Live sidebar width preview
+  const sidebarInp = document.getElementById('set-sidebar-width');
+  const sidebarPrev = document.getElementById('sidebar-width-preview');
+  if (sidebarInp && sidebarPrev) {
+    sidebarInp.addEventListener('input', function() {
+      sidebarPrev.textContent = this.value;
+      document.documentElement.style.setProperty('--sidebar-w', this.value + 'px');
+    });
+  }
+
+  // Sync settings panel overlay close
+  const overlay = document.getElementById('settings-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', closeSettingsPanel);
+  }
+
+  // Quality bar element ID fix untuk _updateQualityUI
+  // progress-fill-quality digunakan oleh initActorPage
+  const qualityBar = document.getElementById('quality-bar-overall');
+  if (qualityBar) qualityBar.style.width = '0%';
+});
+</script>
+
+</body>
+</html>
